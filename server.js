@@ -84,9 +84,10 @@ const ffmpeg_params = [
 	"-tune", "zerolatency",
 	"-preset", "ultrafast",
 	"-c:v", "libx264", "-b:v", "800k", "-pix_fmt", "yuv420p", //"-s", "1280x720",
-	"-keyint_min", "250",
-	"-movflags", "+frag_keyframe+empty_moov+default_base_moof",
-	"-metadata", "title='media'",
+	//"-keyint_min", "250",
+	//"-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+	"-movflags", "+empty_moov+default_base_moof",
+	//"-metadata", "title='media'",
 	//"-f", "mpegts",
 	"-f", "mp4",
 	"pipe:1"
@@ -122,5 +123,3 @@ ffmpeg.stdout.on('data', function (data) {
 		App.connected_client.send(data);
 	}
 });
-
-

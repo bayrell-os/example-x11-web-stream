@@ -45,7 +45,7 @@ document.getElementById('playButton').addEventListener("click", () => {
 		//let codec = 'video/mp4; codecs="avc1.4D0029"';
 		
 		media_source_buffer = media_source.addSourceBuffer(codec);
-		media_source_buffer.mode = 'sequence';
+		//media_source_buffer.mode = 'sequence';
 		
 		media_source_buffer.addEventListener('update', function() {
 			processQueue();
@@ -58,12 +58,8 @@ document.getElementById('playButton').addEventListener("click", () => {
 	});
 	
 	const videoDraw = (data) => {
-		
-		if (media_source_buffer == null) return;
-		
 		media_queue.push(data);
 		processQueue();
-		
 	};
 	
 	socket = new WebSocket("ws://127.0.0.1:8080/");
@@ -98,6 +94,7 @@ document.getElementById('playButton').addEventListener("click", () => {
 		
 		try {
 			videoDraw(event.data);
+			player.play();
 		}
 		catch(e){
 			console.log(e);
