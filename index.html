@@ -28,8 +28,10 @@ document.getElementById('playButton').addEventListener("click", () => {
 	let media_queue = [];
 	let media_updating = false;
 	
-	const shiftQueue = () => {
+	const processQueue = () => {
 		if (media_queue.length == 0) return;
+		if (media_source_buffer == null) return;
+		if (media_source_buffer.updating) return;
 		let data = media_queue.shift();
 		console.log(data['byteLength']);
 		media_source_buffer.appendBuffer(data);
@@ -37,38 +39,31 @@ document.getElementById('playButton').addEventListener("click", () => {
 	
 	media_source.addEventListener('sourceopen', function() {
 		
-		media_source_buffer = media_source.addSourceBuffer('video/webm; codecs="vp8"');
-		//media_source_buffer.mode = 'sequence';
+		let codec = 'video/mp4; codecs="avc1.42E01E"';
+		//let codec = 'video/webm; codecs="vp8"';
+		//let codec = 'video/mp4; codecs="mp4a.40.2, avc1.4d401f"';
+		//let codec = 'video/mp4; codecs="avc1.4D0029"';
 		
-		//sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="mp4a.40.2, avc1.4d401f"');
-		//sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E"');
-		//sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.4D0029"');
+		media_source_buffer = media_source.addSourceBuffer(codec);
+		media_source_buffer.mode = 'sequence';
 		
 		media_source_buffer.addEventListener('update', function() {
-			//shiftQueue();
+			processQueue();
 		});
 		
 		media_source_buffer.addEventListener('updateend', function() {
-			//shiftQueue();
+			processQueue();
 		});
 		
 	});
 	
 	const videoDraw = (data) => {
 		
-		media_source_buffer.appendBuffer(data);
-		return;
-		
 		if (media_source_buffer == null) return;
 		
 		media_queue.push(data);
+		processQueue();
 		
-		if (!media_source_buffer.updating)
-		{
-			shiftQueue();
-			//player.play();
-		}
-	    
 	};
 	
 	socket = new WebSocket("ws://127.0.0.1:8080/");
