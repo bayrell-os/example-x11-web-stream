@@ -4,67 +4,113 @@
 </head>
 <body>
 
-<canvas id="videostream"></canvas>
+<video id="videoPlayer" controls="false" autoplay></video>
+<canvas id="videoCanvas" style="display: none;"></canvas>
+
+<button id="playButton">Play</button>
 
 <script>
 
-var socket = null;
-var canvas = document.getElementById('videostream');
-canvas.width = 1440 * 500 / 900;
-canvas.height = 500;
+document.getElementById('playButton').addEventListener("click", () => {
+	
+	let canvas = document.getElementById('videoCanvas');
+	canvas.width = 1024 * 500 / 768;
+	canvas.height = 500;
+	
+	let context = canvas.getContext('2d');
+	
+	let socket = null;
+	let player = document.getElementById('videoPlayer');
+	let media_source = new MediaSource();
+	player.src = URL.createObjectURL(media_source);
+	
+	let media_source_buffer = null;
+	let media_queue = [];
+	let media_updating = false;
+	
+	const shiftQueue = () => {
+		if (media_queue.length == 0) return;
+		let data = media_queue.shift();
+		console.log(data['byteLength']);
+		media_source_buffer.appendBuffer(data);
+	};
+	
+	media_source.addEventListener('sourceopen', function() {
+		
+		media_source_buffer = media_source.addSourceBuffer('video/webm; codecs="vp8"');
+		//media_source_buffer.mode = 'sequence';
+		
+		//sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="mp4a.40.2, avc1.4d401f"');
+		//sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.42E01E"');
+		//sourceBuffer = mediaSource.addSourceBuffer('video/mp4; codecs="avc1.4D0029"');
+		
+		media_source_buffer.addEventListener('update', function() {
+			//shiftQueue();
+		});
+		
+		media_source_buffer.addEventListener('updateend', function() {
+			//shiftQueue();
+		});
+		
+	});
+	
+	const videoDraw = (data) => {
+		
+		media_source_buffer.appendBuffer(data);
+		return;
+		
+		if (media_source_buffer == null) return;
+		
+		media_queue.push(data);
+		
+		if (!media_source_buffer.updating)
+		{
+			shiftQueue();
+			//player.play();
+		}
+	    
+	};
+	
+	socket = new WebSocket("ws://127.0.0.1:8080/");
+	socket.binaryType = 'arraybuffer';
+	
+	socket.onopen = function(e) {
+		console.log("socket connected");
+	};
+	
+	socket.onmessage = function(event) {
+	};
+	
+	socket.onclose = function(event) {
+		console.log("socket disconnected");
+	};
+	
+	socket.onerror = function(error) {
+		console.log(error);
+	};
+	
+	const jpegDraw = (data) => {
+		var imageObj = new Image();
+		imageObj.src = "data:image/jpeg;base64,"+data;
+		imageObj.onload = () => {
+			context.height = imageObj.height;
+			context.width = imageObj.width;
+			context.drawImage(imageObj,0,0,context.width,context.height);
+		}
+	};
+	
+	socket.onmessage = function(event) {
+		
+		try {
+			videoDraw(event.data);
+		}
+		catch(e){
+			console.log(e);
+		}
+		
+	};
 
-var context = canvas.getContext('2d');
-
-socket = new WebSocket("ws://127.0.0.1:8080/");
-
-socket.onopen = function(e) {
-	console.log("socket connected");
-};
-
-socket.onmessage = function(event) {
-};
-
-socket.onclose = function(event) {
-	console.log("socket disconnected");
-};
-
-socket.onerror = function(error) {
-	console.log(error);
-};
-
-/*
-const videoDecoder = new VideoDecoder({
-	output: async () => {
-		const bitmap = await frame.createImageBitmap();
-		context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-	}
 });
-*/
-
-const jpegDraw = (data) => {
-	var imageObj = new Image();
-	imageObj.src = "data:image/jpeg;base64,"+data;
-	imageObj.onload = () => {
-		context.height = imageObj.height;
-		context.width = imageObj.width;
-		context.drawImage(imageObj,0,0,context.width,context.height);
-	}
-};
-
-socket.onmessage = function(event) {
-	
-	let data = event.data;
-	//console.log(data);
-	
-	try {
-		jpegDraw(data);
-	}
-	catch(e){
-		console.log(e);
-	}
-	
-};
-
 
 </script>
 
