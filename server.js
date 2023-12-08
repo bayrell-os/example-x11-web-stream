@@ -68,11 +68,11 @@ App.web_server.listen(8080, () => {
 
 const ffmpeg = require('child_process').spawn("ffmpeg", [
 	"-re",
-	"-f", "x11grab", "-s", "1024x768", "-i", ":0",
+	"-f", "x11grab", "-s", "1440x900", "-i", ":0",
 	"-framerate", "20",
 	"-tune", "zerolatency",
 	"-preset", "ultrafast",
-	//"-c:v", "libx264", 
+	//"-c:v", "libx264",
 	"-f", "mjpeg", "pipe:1"
 	]
 );
@@ -89,7 +89,7 @@ ffmpeg.on('close', function (code) {
 });
 
 ffmpeg.stderr.on('data', function (data) {
-	//console.log(data.toString());
+	console.log(data.toString());
 });
 
 ffmpeg.stdout.on('data', function (data) {

@@ -1,68 +1,69 @@
 <html>
 <head>
 <title>Video stream</title>
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
 </head>
 <body>
 
-<canvas id="videostream" width="1024" height="768" style="border:solid;"></canvas>
+<canvas id="videostream"></canvas>
 
 <script>
 
 var socket = null;
+var canvas = document.getElementById('videostream');
+canvas.width = 1440 * 500 / 900;
+canvas.height = 500;
 
-$(document).ready(function () {
-	
-	console.log("client ready!");	
-	//socket = new WebSocket({ path: "/socket", transports: ['websocket'] });
-	
-	socket = new WebSocket("ws://127.0.0.1:8080/");
-	
-	socket.onopen = function(e) {
-		console.log("socket connected");
-	};
-	
-	socket.onmessage = function(event) {
-	};
-	
-	socket.onclose = function(event) {
-		console.log("socket disconnected");
-	};
-	
-	socket.onerror = function(error) {
-		console.log(error);
-	};
-	
-	socket.onmessage = function(event) {
-		
-		let data = event.data;
-		//console.log(data);
-		
-		try {
-			
-			var canvas = document.getElementById('videostream');
-			var context = canvas.getContext('2d');
-			var imageObj = new Image();
-			imageObj.src = "data:image/jpeg;base64,"+data;
-			imageObj.onload = function(){
-				context.height = imageObj.height;
-				context.width = imageObj.width;
-				context.drawImage(imageObj,0,0,context.width,context.height);
-			}
-			
-			// 2. method: draw as CSS background
-			// $('#videostream').css('background', 'transparent url(data:image/jpeg;base64,'+data+') top left / 100% 100% no-repeat');
-			
-		}
-		catch(e){
-			console.log(e);
-		}
-	};
-	
+var context = canvas.getContext('2d');
+
+socket = new WebSocket("ws://127.0.0.1:8080/");
+
+socket.onopen = function(e) {
+	console.log("socket connected");
+};
+
+socket.onmessage = function(event) {
+};
+
+socket.onclose = function(event) {
+	console.log("socket disconnected");
+};
+
+socket.onerror = function(error) {
+	console.log(error);
+};
+
+/*
+const videoDecoder = new VideoDecoder({
+	output: async () => {
+		const bitmap = await frame.createImageBitmap();
+		context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+	}
 });
+*/
 
+const jpegDraw = (data) => {
+	var imageObj = new Image();
+	imageObj.src = "data:image/jpeg;base64,"+data;
+	imageObj.onload = () => {
+		context.height = imageObj.height;
+		context.width = imageObj.width;
+		context.drawImage(imageObj,0,0,context.width,context.height);
+	}
+};
 
-
+socket.onmessage = function(event) {
+	
+	let data = event.data;
+	//console.log(data);
+	
+	try {
+		jpegDraw(data);
+	}
+	catch(e){
+		console.log(e);
+	}
+	
+};
 
 
 </script>
