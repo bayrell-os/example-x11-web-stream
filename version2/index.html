@@ -4,6 +4,8 @@
 </head>
 <body>
 
+<div>Bitrate: <span id="bitrate_kbits">0</span> kbits/s, <span id="bitrate_mbs">0</span> MB/s</div>
+
 <video id="videoPlayer" controls="false" style="display: none;" autoplay></video>
 <canvas id="videoCanvas"></canvas>
 
@@ -18,6 +20,8 @@ document.getElementById('playButton').addEventListener("click", () => {
 	let width = 1440;
 	let height = 900;
 	
+	let bitrate_kbits_elem = document.getElementById('bitrate_kbits');
+	let bitrate_mbs_elem = document.getElementById('bitrate_mbs');
 	let canvas = document.getElementById('videoCanvas');
 	canvas.width = width;
 	canvas.height = height;
@@ -33,15 +37,37 @@ document.getElementById('playButton').addEventListener("click", () => {
 	player.src = URL.createObjectURL(media_source);
 	player.play();
 	
+	let segments_info = [];
+	let segments_info_total = 0;
+	
 	/* Process canvas draw */
 	const canvasDraw = () => {
 		if (player.paused || player.ended) {
 			return;
 		}
 		context.drawImage(player, 0, 0, width, height);
-		setTimeout(canvasDraw, 5);
+		setTimeout(canvasDraw, 40); // 25 FPS
 	};
 	canvasDraw();
+	
+	/* Update bitrate */
+	const updateBitrate = () => {
+		if (segments_info.length > 0)
+		{
+			let first = segments_info[0];
+			let last = segments_info[ segments_info.length - 1 ];
+			let time = (last.date - first.date) / 1000;
+			
+			// Bitrate bytes / s
+			let bitrate = segments_info_total / time;
+			
+			// Convert to kbits / s
+			bitrate_kbits_elem.innerText = Math.round(bitrate * 8 / 1000);
+			bitrate_mbs_elem.innerText = Math.round(bitrate / 1024 / 1024 * 100) / 100;
+		}
+		setTimeout(updateBitrate, 500);
+	};
+	updateBitrate();
 	
 	//console.log("Status: " + media_source.readyState);
 	
@@ -69,9 +95,18 @@ document.getElementById('playButton').addEventListener("click", () => {
 	
 	const addVideoSegment = (data) => {
 		if (is_error) return;
-		console.log("[" + getDateString() + "] onmessage: " + event.data['byteLength']);
+		//console.log("[" + getDateString() + "] onmessage: " + event.data['byteLength']);
 		media_queue.push(data);
 		processQueue();
+		
+		let byteLength = event.data['byteLength'];
+		segments_info.push({ "date": (new Date()).getTime(), "size": byteLength });
+		segments_info_total += byteLength;
+		if (segments_info.length > 50)
+		{
+			let first = segments_info.shift();
+			segments_info_total -= first.size;
+		}
 	};
 	
 	media_source.addEventListener('error', (e) => { console.log(e); is_error = true; });
