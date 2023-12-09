@@ -73,7 +73,8 @@ const ffmpeg = require('child_process').spawn("ffmpeg", [
 	"-tune", "zerolatency",
 	//"-preset", "ultrafast",
 	"-fflags", "nobuffer",
-	"-crf", "30", // video quality !!!
+	//"-crf", "30", // video quality !!!
+	//"-q:v", "1", // video quality !!!
 	"-avoid_negative_ts", "make_zero",
 	//"-c:v", "libx264",
 	"-f", "mjpeg", "pipe:1"
