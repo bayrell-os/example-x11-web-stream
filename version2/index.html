@@ -13,14 +13,22 @@
 
 document.getElementById('playButton').addEventListener("click", () => {
 	
+	//let w = 1024 * 400 / 768;
+	//let h = 400;
+	let w = 1024;
+	h = 768;
+	
 	let canvas = document.getElementById('videoCanvas');
-	canvas.width = 1024 * 500 / 768;
-	canvas.height = 500;
+	canvas.width = w;
+	canvas.height = h;
 	
 	let context = canvas.getContext('2d');
 	
 	let socket = null;
 	let player = document.getElementById('videoPlayer');
+	player.width = w;
+	player.height = h;
+	
 	let media_source = new MediaSource();
 	player.src = URL.createObjectURL(media_source);
 	player.play();

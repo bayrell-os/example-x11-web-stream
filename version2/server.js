@@ -11,6 +11,7 @@ const App = {
 	web_server: null,
 	web_socket: null,
 	connected_client: null,
+	last_segment: null,
 	mp4frag: null,
 	
 	onRequest: function (request, response) {
@@ -41,6 +42,10 @@ const App = {
 	    return;
 		
 	},
+	
+	pushSegment: function(segment){
+		this.last_segment = segment;
+	}
 }
 
 
@@ -59,6 +64,10 @@ App.web_socket.on('connection', (client) => {
 	App.connected_client = client;
 	
 	client.send(App.mp4frag.initialization);
+	if (App.last_segment)
+	{
+		client.send(App.last_segment);
+	}
 	
 	client.on('close', () => {
 		App.connected_client = null;
@@ -77,11 +86,21 @@ const ffmpeg_params = [
 	"-framerate", "20",
 	"-tune", "zerolatency",
 	"-preset", "ultrafast",
-	"-c:v", "libx264", "-b:v", "800k", "-pix_fmt", "yuv420p", //"-s", "1280x720",
+	"-fflags", "nobuffer",
+	"-crf", "40",
+	//"-flags", "low_delay",
+	//"-framedrop",
+	//"-strict", "experimental",
+	"-c:v", "libx264", "-b:v", "1200k", "-pix_fmt", "yuv420p", //"-s", "1280x720",
+	//"-hls_time", "1",
+	//"-segment_time", "3",
+	"-g", "10",
+	//"-force_key_frames", "'expr:gte(t,n_forced*3)'",
 	//"-keyint_min", "250",
 	"-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+	//"-movflags", "empty_moov+default_base_moof",
 	"-metadata", "title='media'",
-	//"-f", "mpegts",
+	//"-f", "mpeg",
 	"-f", "mp4",
 	"pipe:1"
 ];
@@ -102,7 +121,7 @@ ffmpeg.on('close', function (code) {
 });
 
 const Mp4Frag = require('mp4frag');
-App.mp4frag = new Mp4Frag({hlsPlaylistSize: 3, hlsPlaylistBase: 'back_yard'});
+App.mp4frag = new Mp4Frag({hlsPlaylistSize: 2, hlsPlaylistBase: 'test'});
 
 const stream = require('stream');
 var stderr = new stream.Writable();
@@ -120,7 +139,8 @@ ffmpeg.stderr.on('data', function (data) {
 });
 */
 App.mp4frag.on('segment', (data) => {
-	console.log(data);
+	//console.log(data);
+	App.pushSegment(data.segment);
 	if (App.connected_client)
 	{
 		App.connected_client.send(data.segment);
