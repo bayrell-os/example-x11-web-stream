@@ -11,7 +11,7 @@ const App = {
 	web_server: null,
 	web_socket: null,
 	connected_client: null,
-	first_packet: [],
+	mp4frag: null,
 	
 	onRequest: function (request, response) {
 	
@@ -58,13 +58,7 @@ App.web_socket.on('connection', (client) => {
 	console.log("User connected");
 	App.connected_client = client;
 	
-	if (App.first_packet.length > 0)
-	{
-		for (let i=0; i<App.first_packet.length; i++)
-		{
-			client.send(App.first_packet[i]);
-		}
-	}
+	client.send(App.mp4frag.initialization);
 	
 	client.on('close', () => {
 		App.connected_client = null;
@@ -85,19 +79,18 @@ const ffmpeg_params = [
 	"-preset", "ultrafast",
 	"-c:v", "libx264", "-b:v", "800k", "-pix_fmt", "yuv420p", //"-s", "1280x720",
 	//"-keyint_min", "250",
-	//"-movflags", "+frag_keyframe+empty_moov+default_base_moof",
-	"-movflags", "+empty_moov+default_base_moof",
-	//"-metadata", "title='media'",
+	"-movflags", "+frag_keyframe+empty_moov+default_base_moof",
+	"-metadata", "title='media'",
 	//"-f", "mpegts",
 	"-f", "mp4",
 	"pipe:1"
 ];
-const ffmpeg = require('child_process').spawn("ffmpeg", ffmpeg_params);
+const ffmpeg = require('child_process').spawn(
+	"ffmpeg", ffmpeg_params, { stdio: ['ignore', 'pipe', 'pipe'] }
+);
 
 console.log("Run ffmpeg");
 console.log(ffmpeg_params.join(" "));
-
-let connectedClient = null;
 
 ffmpeg.on('error', function (err) {
 	throw err;
@@ -108,12 +101,35 @@ ffmpeg.on('close', function (code) {
 	process.exit(1);
 });
 
+const Mp4Frag = require('mp4frag');
+App.mp4frag = new Mp4Frag({hlsPlaylistSize: 3, hlsPlaylistBase: 'back_yard'});
+
+const stream = require('stream');
+var stderr = new stream.Writable();
+stderr._write = function (data, encoding, callback) {
+    process.stdout.write(data.toString() + "\n");
+    callback();
+};
+
+ffmpeg.stdio[1].pipe(App.mp4frag);
+ffmpeg.stdio[2].pipe(stderr);
+
+/*
 ffmpeg.stderr.on('data', function (data) {
 	console.log(data.toString());
 });
+*/
+App.mp4frag.on('segment', (data) => {
+	console.log(data);
+	if (App.connected_client)
+	{
+		App.connected_client.send(data.segment);
+	}
+});
 
+/*
 ffmpeg.stdout.on('data', function (data) {
-	if (App.first_packet.length < 3)
+	if (App.first_packet.length < 10)
 	{ 
 		App.first_packet.push(data); 
 	}
@@ -123,3 +139,4 @@ ffmpeg.stdout.on('data', function (data) {
 		App.connected_client.send(data);
 	}
 });
+*/

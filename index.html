@@ -23,44 +23,94 @@ document.getElementById('playButton').addEventListener("click", () => {
 	let player = document.getElementById('videoPlayer');
 	let media_source = new MediaSource();
 	player.src = URL.createObjectURL(media_source);
+	player.play();
+	
+	//console.log("Status: " + media_source.readyState);
+	
+	const getDateString = () => {
+		let date = new Date();
+		return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+	};
+	
+	const mediaSourceLog = (event) => () => {
+		console.log("[" + getDateString() + "] " + event + ": " + media_source.readyState);
+	};
 	
 	let media_source_buffer = null;
 	let media_queue = [];
-	let media_updating = false;
+	let is_error = false;
 	
 	const processQueue = () => {
 		if (media_queue.length == 0) return;
+		if (media_source.readyState != 'open') return;
 		if (media_source_buffer == null) return;
 		if (media_source_buffer.updating) return;
 		let data = media_queue.shift();
-		console.log(data['byteLength']);
+		console.log("[" + getDateString() + "] processQueue: " + data['byteLength']);
 		media_source_buffer.appendBuffer(data);
 	};
 	
-	media_source.addEventListener('sourceopen', function() {
+	const addVideoSegment = (data) => {
+		if (is_error) return;
+		console.log("[" + getDateString() + "] onmessage: " + event.data['byteLength']);
+		//if (media_source.readyState != 'open') return;
 		
-		let codec = 'video/mp4; codecs="avc1.42E01E"';
-		//let codec = 'video/webm; codecs="vp8"';
-		//let codec = 'video/mp4; codecs="mp4a.40.2, avc1.4d401f"';
-		//let codec = 'video/mp4; codecs="avc1.4D0029"';
-		
-		media_source_buffer = media_source.addSourceBuffer(codec);
-		//media_source_buffer.mode = 'sequence';
-		
-		media_source_buffer.addEventListener('update', function() {
-			processQueue();
-		});
-		
-		media_source_buffer.addEventListener('updateend', function() {
-			processQueue();
-		});
-		
-	});
-	
-	const videoDraw = (data) => {
 		media_queue.push(data);
 		processQueue();
 	};
+	
+	media_source.addEventListener('sourceopen', mediaSourceLog('source_open'));
+	media_source.addEventListener('sourceended', mediaSourceLog('source_ended'));
+	media_source.addEventListener('sourceclose', mediaSourceLog('source_close'));
+	media_source.addEventListener('error', mediaSourceLog('source_error'));
+	media_source.addEventListener('error', (e) => { console.log(e); is_error = true; });
+	
+	media_source.addEventListener('sourceopen', function() {
+		
+		if (media_source_buffer != null) return;
+		
+		//let codec = 'video/webm; codecs="vp8"';
+		//let codec = 'video/mp4; codecs="mp4a.40.2, avc1.4d401f"';
+		//let codec = 'video/mp4; codecs="avc1.4D0029"';
+		//let codec = 'video/mp4; codecs="avc1.42E01E"';
+		
+		let codec = 'video/mp4; codecs="avc1.42E01E"';
+		media_source_buffer = media_source.addSourceBuffer(codec);
+		media_source_buffer.mode = 'sequence';
+		
+		//media_source_buffer.addEventListener('updatestart', mediaSourceLog('buffer_updatestart'));
+		//media_source_buffer.addEventListener('update', mediaSourceLog('buffer_update'));
+		media_source_buffer.addEventListener('updateend', mediaSourceLog('buffer_updateend'));
+		
+		media_source_buffer.addEventListener('abort', mediaSourceLog('buffer_abort'));
+		media_source_buffer.addEventListener('error', mediaSourceLog('buffer_error'));
+		media_source_buffer.addEventListener('error', (e) => { console.log(e); is_error = true; });
+		
+		media_source_buffer.addEventListener('update', function() {
+			//processQueue();
+		});
+		
+		media_source_buffer.addEventListener('updateend', function() {
+			
+			console.log("Duration: " + media_source.duration);
+			console.log("currentTime: " + player.currentTime);
+			
+			processQueue();
+			
+			/*
+			if (
+				media_source.duration !== Number.POSITIVE_INFINITY &&
+				player.currentTime === 0 &&
+				media_source.duration > 0
+			)
+			{
+                player.currentTime = media_source.duration - 1;
+                media_source.duration = Number.POSITIVE_INFINITY;
+            }
+            */
+		});
+		
+	});
 	
 	socket = new WebSocket("ws://127.0.0.1:8080/");
 	socket.binaryType = 'arraybuffer';
@@ -91,15 +141,7 @@ document.getElementById('playButton').addEventListener("click", () => {
 	};
 	
 	socket.onmessage = function(event) {
-		
-		try {
-			videoDraw(event.data);
-			player.play();
-		}
-		catch(e){
-			console.log(e);
-		}
-		
+		addVideoSegment(event.data);
 	};
 
 });
