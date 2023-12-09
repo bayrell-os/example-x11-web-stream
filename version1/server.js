@@ -68,10 +68,13 @@ App.web_server.listen(8080, () => {
 
 const ffmpeg = require('child_process').spawn("ffmpeg", [
 	"-re",
-	"-f", "x11grab", "-s", "1440x900", "-i", ":0",
-	"-framerate", "20",
+	"-f", "x11grab", "-s", "1024x768", "-i", ":0",
+	"-r", "15",
 	"-tune", "zerolatency",
-	"-preset", "ultrafast",
+	//"-preset", "ultrafast",
+	"-fflags", "nobuffer",
+	"-crf", "30", // video quality !!!
+	"-avoid_negative_ts", "make_zero",
 	//"-c:v", "libx264",
 	"-f", "mjpeg", "pipe:1"
 	]

@@ -4,18 +4,57 @@
 </head>
 <body>
 
+<div>Bitrate: <span id="bitrate_kbits">0</span> kbits/s, <span id="bitrate_mbs">0</span> MB/s</div>
 <canvas id="videostream"></canvas>
 
 <script>
 
-var socket = null;
-var canvas = document.getElementById('videostream');
-canvas.width = 1440 * 500 / 900;
-canvas.height = 500;
+/* Update bitrate */
+let bitrate_kbits_elem = document.getElementById('bitrate_kbits');
+let bitrate_mbs_elem = document.getElementById('bitrate_mbs');
+let segments_info = [];
+let segments_info_total = 0;
 
-var context = canvas.getContext('2d');
+const updateBitrate = () => {
+	if (segments_info.length > 0)
+	{
+		let first = segments_info[0];
+		let last = segments_info[ segments_info.length - 1 ];
+		let time = (last.date - first.date) / 1000;
+		
+		// Bitrate bytes / s
+		let bitrate = segments_info_total / time;
+		
+		// Convert to kbits / s
+		bitrate_kbits_elem.innerText = Math.round(bitrate * 8 / 1000);
+		bitrate_mbs_elem.innerText = Math.round(bitrate / 1024 / 1024 * 100) / 100;
+	}
+	setTimeout(updateBitrate, 500);
+};
+updateBitrate();
 
+
+let width = 1024 * 500 / 768;
+let height = 500;
+
+width = 1024;
+height = 768;
+
+/* Canvas */
+let canvas = document.getElementById('videostream');
+canvas.width = width;
+canvas.height = height;
+
+let context = canvas.getContext('2d');
+context.width = width;
+context.height = height;
+
+
+/* Socket */
+
+let socket = null;
 socket = new WebSocket("ws://127.0.0.1:8080/");
+//socket.binaryType = 'arraybuffer';
 
 socket.onopen = function(e) {
 	console.log("socket connected");
@@ -32,22 +71,31 @@ socket.onerror = function(error) {
 	console.log(error);
 };
 
-/*
-const videoDecoder = new VideoDecoder({
-	output: async () => {
-		const bitmap = await frame.createImageBitmap();
-		context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-	}
-});
-*/
-
 const jpegDraw = (data) => {
-	var imageObj = new Image();
-	imageObj.src = "data:image/jpeg;base64,"+data;
+	
+	/*let str = [];
+	let bytes = new Uint8Array(data);
+    for (let i = 0; i < bytes.byteLength; i++) {
+        str.push(String.fromCharCode(bytes[i]));
+    }
+	str = btoa(str.join(""));*/
+	let str = data;
+	
+	let imageObj = new Image();
+	imageObj.src = "data:image/jpeg;base64,"+str;
 	imageObj.onload = () => {
-		context.height = imageObj.height;
-		context.width = imageObj.width;
-		context.drawImage(imageObj,0,0,context.width,context.height);
+		context.drawImage(imageObj,0,0,imageObj.width,imageObj.height,0,0,context.width,context.height);
+	}
+	
+	/* Update bitrate */
+	//let byteLength = data['byteLength'];
+	let byteLength = str.length;
+	segments_info.push({ "date": (new Date()).getTime(), "size": byteLength });
+	segments_info_total += byteLength;
+	if (segments_info.length > 50)
+	{
+		let first = segments_info.shift();
+		segments_info_total -= first.size;
 	}
 };
 

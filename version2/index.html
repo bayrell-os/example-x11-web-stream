@@ -99,6 +99,7 @@ document.getElementById('playButton').addEventListener("click", () => {
 		media_queue.push(data);
 		processQueue();
 		
+		/* Update bitrate */
 		let byteLength = event.data['byteLength'];
 		segments_info.push({ "date": (new Date()).getTime(), "size": byteLength });
 		segments_info_total += byteLength;
