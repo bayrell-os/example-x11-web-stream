@@ -4,8 +4,8 @@
 </head>
 <body>
 
-<video id="videoPlayer" controls="false" autoplay></video>
-<canvas id="videoCanvas" style="display: none;"></canvas>
+<video id="videoPlayer" controls="false" style="display: none;" autoplay></video>
+<canvas id="videoCanvas"></canvas>
 
 <button id="playButton">Play</button>
 
@@ -15,23 +15,33 @@ document.getElementById('playButton').addEventListener("click", () => {
 	
 	//let w = 1440 * 500 / 900;
 	//let h = 500;
-	let w = 1440;
-	h = 900;
+	let width = 1440;
+	let height = 900;
 	
 	let canvas = document.getElementById('videoCanvas');
-	canvas.width = w;
-	canvas.height = h;
+	canvas.width = width;
+	canvas.height = height;
 	
 	let context = canvas.getContext('2d');
 	
 	let socket = null;
 	let player = document.getElementById('videoPlayer');
-	player.width = w;
-	player.height = h;
+	player.width = width;
+	player.height = height;
 	
 	let media_source = new MediaSource();
 	player.src = URL.createObjectURL(media_source);
 	player.play();
+	
+	/* Process canvas draw */
+	const canvasDraw = () => {
+		if (player.paused || player.ended) {
+			return;
+		}
+		context.drawImage(player, 0, 0, width, height);
+		setTimeout(canvasDraw, 5);
+	};
+	canvasDraw();
 	
 	//console.log("Status: " + media_source.readyState);
 	
@@ -54,23 +64,16 @@ document.getElementById('playButton').addEventListener("click", () => {
 		if (media_source_buffer == null) return;
 		if (media_source_buffer.updating) return;
 		let data = media_queue.shift();
-		console.log("[" + getDateString() + "] processQueue: " + data['byteLength']);
 		media_source_buffer.appendBuffer(data);
 	};
 	
 	const addVideoSegment = (data) => {
 		if (is_error) return;
 		console.log("[" + getDateString() + "] onmessage: " + event.data['byteLength']);
-		//if (media_source.readyState != 'open') return;
-		
 		media_queue.push(data);
 		processQueue();
 	};
 	
-	media_source.addEventListener('sourceopen', mediaSourceLog('source_open'));
-	media_source.addEventListener('sourceended', mediaSourceLog('source_ended'));
-	media_source.addEventListener('sourceclose', mediaSourceLog('source_close'));
-	media_source.addEventListener('error', mediaSourceLog('source_error'));
 	media_source.addEventListener('error', (e) => { console.log(e); is_error = true; });
 	
 	media_source.addEventListener('sourceopen', function() {
@@ -86,36 +89,9 @@ document.getElementById('playButton').addEventListener("click", () => {
 		media_source_buffer = media_source.addSourceBuffer(codec);
 		media_source_buffer.mode = 'sequence';
 		
-		//media_source_buffer.addEventListener('updatestart', mediaSourceLog('buffer_updatestart'));
-		//media_source_buffer.addEventListener('update', mediaSourceLog('buffer_update'));
-		media_source_buffer.addEventListener('updateend', mediaSourceLog('buffer_updateend'));
-		
-		media_source_buffer.addEventListener('abort', mediaSourceLog('buffer_abort'));
-		media_source_buffer.addEventListener('error', mediaSourceLog('buffer_error'));
-		media_source_buffer.addEventListener('error', (e) => { console.log(e); is_error = true; });
-		
-		media_source_buffer.addEventListener('update', function() {
-			//processQueue();
-		});
-		
+		media_source_buffer.addEventListener('error', (e) => { console.log(e); is_error = true; });		
 		media_source_buffer.addEventListener('updateend', function() {
-			
-			console.log("Duration: " + media_source.duration);
-			console.log("currentTime: " + player.currentTime);
-			
 			processQueue();
-			
-			/*
-			if (
-				media_source.duration !== Number.POSITIVE_INFINITY &&
-				player.currentTime === 0 &&
-				media_source.duration > 0
-			)
-			{
-                player.currentTime = media_source.duration - 1;
-                media_source.duration = Number.POSITIVE_INFINITY;
-            }
-            */
 		});
 		
 	});
@@ -136,16 +112,6 @@ document.getElementById('playButton').addEventListener("click", () => {
 	
 	socket.onerror = function(error) {
 		console.log(error);
-	};
-	
-	const jpegDraw = (data) => {
-		var imageObj = new Image();
-		imageObj.src = "data:image/jpeg;base64,"+data;
-		imageObj.onload = () => {
-			context.height = imageObj.height;
-			context.width = imageObj.width;
-			context.drawImage(imageObj,0,0,context.width,context.height);
-		}
 	};
 	
 	socket.onmessage = function(event) {

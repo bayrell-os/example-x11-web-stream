@@ -83,23 +83,26 @@ App.web_server.listen(8080, () => {
 const ffmpeg_params = [
 	"-re",
 	"-f", "x11grab", "-s", "1440x900", "-i", ":0",
-	"-framerate", "10",
+	//"-framerate", "10",
+	"-r", "20", // FPS
 	"-tune", "zerolatency",
 	//"-preset", "ultrafast",
 	"-fflags", "nobuffer",
-	"-crf", "30",
+	"-crf", "30", // video quality !!!
 	//"-flags", "low_delay",
 	//"-framedrop",
 	//"-strict", "experimental",
 	"-c:v", "libx264", "-b:v", "1200k", "-pix_fmt", "yuv420p", //"-s", "960x600",
 	//"-hls_time", "1",
 	//"-segment_time", "3",
-	"-g", "3",
+	"-g", "3", // latency !!!
+	//"-sc_threshold", "0",
 	//"-force_key_frames", "'expr:gte(t,n_forced*3)'",
 	//"-keyint_min", "250",
 	"-movflags", "+frag_keyframe+empty_moov+default_base_moof",
 	//"-movflags", "empty_moov+default_base_moof",
 	"-metadata", "title='media'",
+	"-avoid_negative_ts", "make_zero",
 	//"-f", "mpeg",
 	"-f", "mp4",
 	"pipe:1"
